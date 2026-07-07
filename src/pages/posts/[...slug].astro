@@ -1,0 +1,88 @@
+---
+import { getCollection, type CollectionEntry } from 'astro:content';
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import FormattedDate from '../../components/FormattedDate.astro';
+import Comments from '../../components/Comments.astro';
+
+export async function getStaticPaths() {
+  const posts = await getCollection('posts', ({ data }) => !data.draft);
+  return posts.map(post => ({
+    params: { slug: post.slug },
+    props: post,
+  }));
+}
+
+type Props = CollectionEntry<'posts'>;
+
+const post = Astro.props;
+const { Content } = await post.render();
+const { title, description, date, updated, tags, pinned } = post.data;
+
+// Get prev/next posts
+const allPosts = (await getCollection('posts', ({ data }) => !data.draft))
+  .sort((a, b) => b.data.date.getTime() - a.data.date.getTime());
+const currentIdx = allPosts.findIndex(p => p.slug === post.slug);
+const prevPost = currentIdx > 0 ? allPosts[currentIdx - 1] : null;
+const nextPost = currentIdx < allPosts.length - 1 ? allPosts[currentIdx + 1] : null;
+---
+
+<BaseLayout title={title} description={description}>
+  <article>
+    <header class="mb-8 pb-6 border-b border-[var(--border-color)]">
+      {pinned && (
+        <span class="inline-block px-2 py-0.5 mb-3 text-xs font-mono rounded bg-[var(--accent)] text-white">
+          PINNED
+        </span>
+      )}
+      <h1 class="text-2xl sm:text-3xl font-medium tracking-tight leading-tight">{title}</h1>
+      <p class="mt-2 text-[var(--text-secondary)]">{description}</p>
+      <div class="mt-4 flex flex-wrap items-center gap-3 text-sm text-[var(--text-tertiary)] font-mono">
+        <FormattedDate date={date} />
+        {updated && (
+          <span class="text-xs">
+            (updated <FormattedDate date={updated} />)
+          </span>
+        )}
+        {tags.map(tag => (
+          <a href={`/tags/${tag}`} class="px-1.5 py-0.5 rounded bg-[var(--bg-secondary)] text-[var(--text-secondary)] hover:text-[var(--accent)] transition-colors">
+            #{tag}
+          </a>
+        ))}
+      </div>
+    </header>
+
+    <div class="prose prose-slate dark:prose-invert max-w-none">
+      <Content />
+    </div>
+
+    <button
+      class="fav-btn fixed bottom-6 right-6 p-3 rounded-full bg-[var(--bg-secondary)] border border-[var(--border-color)] text-[var(--text-tertiary)] hover:text-[var(--accent)] hover:border-[var(--accent)] transition-all shadow-lg z-40"
+      data-slug={post.slug}
+      data-title={title}
+      aria-label="收藏文章"
+    >
+      <svg class="w-5 h-5 fav-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
+      </svg>
+    </button>
+
+    {(prevPost || nextPost) && (
+      <nav class="mt-12 pt-6 border-t border-[var(--border-color)] grid grid-cols-1 sm:grid-cols-2 gap-4">
+        {nextPost ? (
+          <a href={`/posts/${nextPost.slug}`} class="group block rounded-lg p-3 border border-[var(--border-color)] hover:border-[var(--accent)] transition-colors">
+            <span class="text-xs text-[var(--text-tertiary)] font-mono">&larr; 上一篇</span>
+            <p class="mt-1 text-sm font-medium group-hover:text-[var(--accent)] transition-colors truncate">{nextPost.data.title}</p>
+          </a>
+        ) : <div />}
+        {prevPost ? (
+          <a href={`/posts/${prevPost.slug}`} class="group block rounded-lg p-3 border border-[var(--border-color)] hover:border-[var(--accent)] transition-colors text-right">
+            <span class="text-xs text-[var(--text-tertiary)] font-mono">下一篇 &rarr;</span>
+            <p class="mt-1 text-sm font-medium group-hover:text-[var(--accent)] transition-colors truncate">{prevPost.data.title}</p>
+          </a>
+        ) : <div />}
+      </nav>
+    )}
+
+    <Comments />
+  </article>
+</BaseLayout>

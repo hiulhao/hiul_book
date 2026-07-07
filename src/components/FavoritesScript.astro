@@ -1,0 +1,82 @@
+---
+// Global favorites manager script - included in BaseLayout
+---
+
+<script>
+  class FavoritesManager {
+    private key = 'devlog:favorites';
+
+    get(): Array<{ slug: string; title: string }> {
+      try {
+        return JSON.parse(localStorage.getItem(this.key) || '[]');
+      } catch {
+        return [];
+      }
+    }
+
+    toggle(slug: string, title: string): boolean {
+      const favs = this.get();
+      const idx = favs.findIndex(f => f.slug === slug);
+      if (idx >= 0) {
+        favs.splice(idx, 1);
+        localStorage.setItem(this.key, JSON.stringify(favs));
+        return false;
+      } else {
+        favs.push({ slug, title });
+        localStorage.setItem(this.key, JSON.stringify(favs));
+        return true;
+      }
+    }
+
+    has(slug: string): boolean {
+      return this.get().some(f => f.slug === slug);
+    }
+
+    remove(slug: string) {
+      const favs = this.get().filter(f => f.slug !== slug);
+      localStorage.setItem(this.key, JSON.stringify(favs));
+    }
+  }
+
+  const favManager = new FavoritesManager();
+
+  function updateFavIcon(btn: HTMLElement, isFav: boolean) {
+    const icon = btn.querySelector('.fav-icon');
+    if (icon) {
+      if (isFav) {
+        icon.setAttribute('fill', 'currentColor');
+        btn.style.color = 'var(--accent)';
+        btn.style.opacity = '1';
+      } else {
+        icon.setAttribute('fill', 'none');
+        btn.style.color = '';
+        btn.style.opacity = '';
+      }
+    }
+  }
+
+  // Initialize all fav buttons on page load
+  function initFavButtons() {
+    document.querySelectorAll('.fav-btn').forEach(btn => {
+      const el = btn as HTMLElement;
+      const slug = el.dataset.slug;
+      if (!slug) return;
+
+      if (favManager.has(slug)) {
+        updateFavIcon(el, true);
+      }
+
+      el.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const title = el.dataset.title || '';
+        const isFav = favManager.toggle(slug, title);
+        updateFavIcon(el, isFav);
+      });
+    });
+  }
+
+  // Run on initial load and after Astro view transitions
+  document.addEventListener('astro:page-load', initFavButtons);
+  initFavButtons();
+</script>

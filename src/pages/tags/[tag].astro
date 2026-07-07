@@ -1,0 +1,49 @@
+---
+import { getCollection } from 'astro:content';
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import PostCard from '../../components/PostCard.astro';
+
+export async function getStaticPaths() {
+  const posts = await getCollection('posts', ({ data }) => !data.draft);
+  const tags = new Set<string>();
+  posts.forEach(post => post.data.tags.forEach(tag => tags.add(tag)));
+  return [...tags].map(tag => ({
+    params: { tag },
+    props: {
+      tag,
+      posts: posts
+        .filter(p => p.data.tags.includes(tag))
+        .sort((a, b) => b.data.date.getTime() - a.data.date.getTime()),
+    },
+  }));
+}
+
+const { tag, posts } = Astro.props;
+---
+
+<BaseLayout title={`#${tag}`} description={`标签 ${tag} 下的文章`}>
+  <section class="mb-8">
+    <a href="/tags" class="text-sm text-[var(--text-tertiary)] hover:text-[var(--accent)] font-mono transition-colors">
+      &larr; 所有标签
+    </a>
+    <h1 class="mt-2 text-2xl font-medium tracking-tight">
+      <span class="text-[var(--accent)] font-mono">#</span>{tag}
+    </h1>
+    <p class="mt-1 text-sm text-[var(--text-secondary)] font-mono">
+      {posts.length} posts
+    </p>
+  </section>
+
+  <section class="space-y-4">
+    {posts.map(post => (
+      <PostCard
+        title={post.data.title}
+        description={post.data.description}
+        date={post.data.date}
+        tags={post.data.tags}
+        slug={post.slug}
+        pinned={post.data.pinned}
+      />
+    ))}
+  </section>
+</BaseLayout>

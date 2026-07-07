@@ -1,0 +1,174 @@
+---
+// Client-side search component - works in both dev and production
+---
+
+<div id="search-container" class="relative">
+  <div class="relative">
+    <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text-tertiary)]" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+      <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+    </svg>
+    <input
+      id="search-input"
+      type="text"
+      placeholder="搜索文章..."
+      class="w-full pl-10 pr-4 py-2 text-sm rounded-lg border border-[var(--border-color)] bg-[var(--bg-secondary)] text-[var(--text-primary)] placeholder-[var(--text-tertiary)] focus:outline-none focus:border-[var(--accent)] transition-colors font-mono"
+    />
+  </div>
+  <div id="search-results" class="hidden absolute top-full left-0 right-0 mt-2 rounded-lg border border-[var(--border-color)] bg-[var(--bg-primary)] shadow-lg max-h-96 overflow-y-auto z-50">
+  </div>
+</div>
+
+<style>
+  #search-results .search-result {
+    padding: 0.75rem 1rem;
+    border-bottom: 1px solid var(--border-color);
+    cursor: pointer;
+    transition: background-color 0.15s;
+  }
+  #search-results .search-result:hover {
+    background-color: var(--bg-secondary);
+  }
+  #search-results .search-result:last-child {
+    border-bottom: none;
+  }
+  #search-results .search-result-title {
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--text-primary);
+  }
+  #search-results .search-result-excerpt {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    margin-top: 0.25rem;
+    line-height: 1.4;
+  }
+  #search-results mark {
+    background-color: rgba(14, 165, 233, 0.2);
+    color: var(--accent);
+    border-radius: 2px;
+    padding: 0 1px;
+  }
+</style>
+
+<script>
+  interface SearchItem {
+    title: string;
+    description: string;
+    tags: string[];
+    url: string;
+    body: string;
+  }
+
+  let searchIndex: SearchItem[] | null = null;
+
+  async function loadIndex(): Promise<SearchItem[]> {
+    if (searchIndex) return searchIndex;
+    try {
+      const res = await fetch('/search-index.json');
+      searchIndex = await res.json();
+      return searchIndex;
+    } catch (e) {
+      console.error('Failed to load search index', e);
+      return [];
+    }
+  }
+
+  function escapeHtml(str: string): string {
+    return str.replace(/[&<>"']/g, (c) => ({
+      '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+    }[c]!));
+  }
+
+  function highlight(text: string, query: string): string {
+    const escaped = escapeHtml(text);
+    if (!query) return escaped;
+    const regex = new RegExp(`(${query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
+    return escaped.replace(regex, '<mark>$1</mark>');
+  }
+
+  function search(items: SearchItem[], query: string): SearchItem[] {
+    const q = query.toLowerCase();
+    const results: { item: SearchItem; score: number }[] = [];
+
+    for (const item of items) {
+      let score = 0;
+      const titleLower = item.title.toLowerCase();
+      const descLower = item.description.toLowerCase();
+      const bodyLower = item.body.toLowerCase();
+
+      if (titleLower.includes(q)) score += 10;
+      if (titleLower.startsWith(q)) score += 5;
+      if (descLower.includes(q)) score += 5;
+      if (bodyLower.includes(q)) score += 1;
+
+      for (const tag of item.tags) {
+        if (tag.toLowerCase().includes(q)) score += 8;
+      }
+
+      if (score > 0) {
+        results.push({ item, score });
+      }
+    }
+
+    results.sort((a, b) => b.score - a.score);
+    return results.slice(0, 8).map((r) => r.item);
+  }
+
+  function getExcerpt(item: SearchItem, query: string): string {
+    const body = item.body;
+    const lowerBody = body.toLowerCase();
+    const idx = lowerBody.indexOf(query.toLowerCase());
+
+    if (idx === -1) {
+      return item.description || body.slice(0, 120);
+    }
+
+    const start = Math.max(0, idx - 50);
+    const end = Math.min(body.length, idx + query.length + 70);
+    return (start > 0 ? '...' : '') + body.slice(start, end) + (end < body.length ? '...' : '');
+  }
+
+  const input = document.getElementById('search-input');
+  const results = document.getElementById('search-results');
+
+  let debounceTimer: number;
+
+  input?.addEventListener('input', async (e) => {
+    const query = (e.target as HTMLInputElement).value.trim();
+    clearTimeout(debounceTimer);
+
+    if (!query) {
+      results?.classList.add('hidden');
+      return;
+    }
+
+    debounceTimer = window.setTimeout(async () => {
+      const items = await loadIndex();
+      if (items.length === 0) return;
+
+      const matched = search(items, query);
+
+      if (matched.length === 0) {
+        results!.innerHTML = '<div class="p-4 text-sm text-[var(--text-tertiary)] font-mono">未找到相关文章</div>';
+        results!.classList.remove('hidden');
+        return;
+      }
+
+      results!.innerHTML = matched.map((item) => {
+        const excerpt = getExcerpt(item, query);
+        return `<a href="${item.url}" class="search-result block">
+          <div class="search-result-title">${highlight(item.title, query)}</div>
+          <div class="search-result-excerpt">${highlight(excerpt, query)}</div>
+        </a>`;
+      }).join('');
+
+      results!.classList.remove('hidden');
+    }, 200);
+  });
+
+  document.addEventListener('click', (e) => {
+    if (!e.target.closest('#search-container')) {
+      results?.classList.add('hidden');
+    }
+  });
+</script>

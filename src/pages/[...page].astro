@@ -1,0 +1,62 @@
+---
+import { getCollection } from 'astro:content';
+import type { GetStaticPaths } from 'astro';
+import BaseLayout from '../layouts/BaseLayout.astro';
+import PostCard from '../components/PostCard.astro';
+import Search from '../components/Search.astro';
+import Pagination from '../components/Pagination.astro';
+
+export const getStaticPaths = (async ({ paginate }) => {
+  const POSTS_PER_PAGE = 5;
+  const allPosts = (await getCollection('posts', ({ data }) => !data.draft))
+    .sort((a, b) => b.data.date.getTime() - a.data.date.getTime());
+
+  // Pinned posts first, then by date
+  const pinned = allPosts.filter(p => p.data.pinned);
+  const normal = allPosts.filter(p => !p.data.pinned);
+  const sortedPosts = [...pinned, ...normal];
+
+  return paginate(sortedPosts, { pageSize: POSTS_PER_PAGE });
+}) satisfies GetStaticPaths;
+
+const { page } = Astro.props;
+const allPosts = await getCollection('posts', ({ data }) => !data.draft);
+---
+
+<BaseLayout title="Hiul·Book" description="个人技术博客 - 记录开发与思考">
+  <section class="mb-8">
+    <h1 class="text-2xl font-medium tracking-tight">
+      <span class="text-[var(--accent)] font-mono">/</span> 最新文章
+    </h1>
+    <p class="mt-1 text-sm text-[var(--text-secondary)] font-mono">
+      {allPosts.length} posts · page {page.currentPage}/{page.lastPage}
+    </p>
+  </section>
+
+  {page.currentPage === 1 && (
+    <section class="mb-8">
+      <Search />
+    </section>
+  )}
+
+  <section class="space-y-4">
+    {page.data.map(post => (
+      <PostCard
+        title={post.data.title}
+        description={post.data.description}
+        date={post.data.date}
+        tags={post.data.tags}
+        slug={post.slug}
+        pinned={post.data.pinned}
+      />
+    ))}
+  </section>
+
+  {page.data.length === 0 && (
+    <div class="text-center py-16 text-[var(--text-tertiary)] font-mono text-sm">
+      <p>No posts yet. Start writing!</p>
+    </div>
+  )}
+
+  <Pagination currentPage={page.currentPage} totalPages={page.lastPage} />
+</BaseLayout>

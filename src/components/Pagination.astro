@@ -1,0 +1,76 @@
+---
+interface Props {
+  currentPage: number;
+  totalPages: number;
+}
+
+const { currentPage, totalPages } = Astro.props;
+
+function getPageUrl(page: number): string {
+  if (page === 1) return '/';
+  return `/${page}`;
+}
+
+function getPages(): (number | string)[] {
+  const pages: (number | string)[] = [];
+  const delta = 1;
+
+  for (let i = 1; i <= totalPages; i++) {
+    if (
+      i === 1 ||
+      i === totalPages ||
+      (i >= currentPage - delta && i <= currentPage + delta)
+    ) {
+      pages.push(i);
+    } else if (pages[pages.length - 1] !== '...') {
+      pages.push('...');
+    }
+  }
+
+  return pages;
+}
+
+const pages = getPages();
+---
+
+{totalPages > 1 && (
+  <nav class="flex items-center justify-center gap-1 mt-10 font-mono text-sm">
+    {currentPage > 1 && (
+      <a
+        href={getPageUrl(currentPage - 1)}
+        class="px-3 py-1.5 rounded-md border border-[var(--border-color)] text-[var(--text-secondary)] hover:border-[var(--accent)] hover:text-[var(--accent)] transition-colors"
+      >
+        ←
+      </a>
+    )}
+
+    {pages.map(page => (
+      <>
+        {page === '...' ? (
+          <span class="px-2 text-[var(--text-tertiary)]">...</span>
+        ) : (
+          <a
+            href={getPageUrl(page as number)}
+            class:list={[
+              'px-3 py-1.5 rounded-md border transition-colors',
+              page === currentPage
+                ? 'border-[var(--accent)] text-[var(--accent)] bg-[var(--bg-secondary)]'
+                : 'border-[var(--border-color)] text-[var(--text-secondary)] hover:border-[var(--accent)] hover:text-[var(--accent)]'
+            ]}
+          >
+            {page}
+          </a>
+        )}
+      </>
+    ))}
+
+    {currentPage < totalPages && (
+      <a
+        href={getPageUrl(currentPage + 1)}
+        class="px-3 py-1.5 rounded-md border border-[var(--border-color)] text-[var(--text-secondary)] hover:border-[var(--accent)] hover:text-[var(--accent)] transition-colors"
+      >
+        →
+      </a>
+    )}
+  </nav>
+)}

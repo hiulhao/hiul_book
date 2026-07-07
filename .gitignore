@@ -1,0 +1,27 @@
+# build output
+dist/
+.output/
+
+# astro generated
+.astro/
+
+# dependencies
+node_modules/
+
+# pagefind index
+public/pagefind/
+
+# environment variables
+.env
+.env.production
+
+# macOS
+.DS_Store
+
+# IDE
+.vscode/
+.idea/
+
+# logs
+*.log
+npm-debug.log*

@@ -1,0 +1,13 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+---
+
+<BaseLayout title="404" description="页面不存在">
+  <div class="text-center py-20">
+    <p class="text-6xl font-mono font-medium text-[var(--accent)]">404</p>
+    <p class="mt-4 text-[var(--text-secondary)] font-mono">Page not found.</p>
+    <a href="/" class="mt-6 inline-block px-4 py-2 rounded-lg border border-[var(--border-color)] hover:border-[var(--accent)] hover:text-[var(--accent)] transition-colors text-sm font-mono">
+      &larr; Back home
+    </a>
+  </div>
+</BaseLayout>
