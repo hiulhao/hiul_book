@@ -22,6 +22,9 @@ public/pagefind/
 .vscode/
 .idea/
 
+# WorkBuddy
+.workbuddy/
+
 # logs
 *.log
 npm-debug.log*
