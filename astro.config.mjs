@@ -3,7 +3,7 @@ import tailwind from '@astrojs/tailwind';
 import mdx from '@astrojs/mdx';
 
 export default defineConfig({
-  site: 'https://hiul-book.vercel.app',
+  site: 'https://hiul-book-five.vercel.app',
   integrations: [tailwind(), mdx()],
   markdown: {
     shikiConfig: {
